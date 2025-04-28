@@ -118,43 +118,33 @@ resolve_python_path() {
 }
 
 get_package_versions() {
-  # Returns a newline-separted list of versions. `list-all` must output
-  # versions on one line, so this expects it's output to be further processed.
-  #
-  # TODO: this uses ASDF_PYAPP_RESOLVED_PYTHON_PATH, but technically python 3.6
-  # isn't required to list versions...
-
   local package=$1
+  curl -Ls "https://pypi.org/pypi/${package}/json" |
+    python3 -c '
+import sys,json
 
-  local pip_version
-  pip_version=$(get_python_pip_versions "$ASDF_PYAPP_RESOLVED_PYTHON_PATH")
-  if [[ $pip_version =~ ^([0-9]+)\.([0-9]+)\.? ]]; then
-    local pip_version_major=${BASH_REMATCH[1]}
-    local pip_version_minor=${BASH_REMATCH[2]}
-  else
-    fail "Unable to parse pip version"
-  fi
+raw_response = sys.stdin
 
-  local pip_install_args=()
-  local version_output_raw
+try:
+    data = json.load(raw_response)
+except json.JSONDecodeError:
+    sys.stderr.write("Error: failed to parse PyPI response:\n")
+    sys.stderr.write(raw_response + "\n")
+    sys.exit(1)
 
-  # we rely on the "legacy resolver" to get versions, which was introduced in 20.3
-  if [ "${pip_version_major}" -ge 21 ] ||
-    { [ "${pip_version_major}" -eq 20 ] && [ "${pip_version_minor}" -ge 3 ]; }; then
-    pip_install_args+=("--use-deprecated=legacy-resolver")
-  fi
-  version_output_raw=$("${ASDF_PYAPP_RESOLVED_PYTHON_PATH}" -m pip install ${pip_install_args[@]+"${pip_install_args[@]}"} "${package}==" 2>&1) || true
+# handle "Not Found"
+if data.get("message") == "Not Found":
+    sys.stderr.write(f"Error: package not found on PyPI\n")
+    sys.exit(1)
 
-  local regex='.*from versions:(.*)\)'
-  if [[ $version_output_raw =~ $regex ]]; then
-    local version_substring="${BASH_REMATCH[1]//','/}"
-    # trim whitespace with 'xargs echo' and convert spaces to newlines with 'tr'
-    local version_list
-    version_list=$(echo "$version_substring" | xargs echo | tr " " "\n")
-    echo "$version_list"
-  else
-    fail "Unable to parse versions for '${package}'"
-  fi
+versions=data["releases"].keys()
+sorted_versions=sorted(versions, key=lambda v: [x for x in v.split(".")])
+print(*sorted_versions, sep="\n")
+'
+  # Same as:
+  #     curl ... | jq -r '.releases | keys_unsorted | sort_by(split(".")) | .[]'
+  # typically I would use here jq, but it means introducing yet another dependency.
+  # Here when we are certain Python is provided, we can use it instead of jq.
 }
 
 sort_versions() {
