@@ -31,7 +31,7 @@ Example using `cowsay`:
 
 ```shell
 # Show all installable versions
-asdf list-all cowsay
+asdf list all cowsay
 
 # Install specific version
 asdf install cowsay latest
@@ -40,7 +40,7 @@ asdf install cowsay latest
 asdf global cowsay latest
 
 # Now cowsay commands are available
-cowsay "Hi!"
+cowsay -t "Hi!"
 ```
 
 ## Compatible Python Applications
@@ -103,10 +103,10 @@ The general form is:
 asdf <app> install <app-version>@<python-version>
 ```
 
-For example, to install `cowsay` 3.0 with Python 3.9.1:
+For example, to install `cowsay` 6.1 with Python 3.12.10:
 
 ```shell
-asdf cowsay install 3.0@3.9.1
+asdf install cowsay 6.1@3.12.10
 ```
 
 Python Apps with different python versions and python itself can all happily co-exist in the same project. For example, take this `.tool-versions`:
